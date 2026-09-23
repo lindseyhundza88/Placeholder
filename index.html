@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logging a Placeholder Entry – Practice</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #e8edf2;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    color: #333;
+    padding: 20px 16px 40px;
+  }
+
+  /* ── Header ── */
+  .page-header {
+    background: #1e4da1;
+    border-radius: 4px 4px 0 0;
+    padding: 11px 18px;
+    max-width: 860px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .page-header h1 { font-size: 14px; font-weight: 700; color: #fff; }
+  .page-header .badge { font-size: 10px; font-weight: 600; background: rgba(255,255,255,0.18); color: #fff; padding: 3px 10px; border-radius: 10px; }
+
+  .page-sub {
+    background: #c8d8e8; border: 1px solid #a8b8cc;
+    border-top: none; border-radius: 0 0 4px 4px;
+    padding: 9px 18px; max-width: 860px;
+    font-size: 12px; color: #333; line-height: 1.5;
+    margin-bottom: 18px;
+  }
+
+  /* ── Step tracker ── */
+  .step-tracker {
+    max-width: 860px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 0;
+  }
+  .step-pip {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    flex: 1;
+  }
+  .pip-circle {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #ccc; color: #fff;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.3s;
+    z-index: 1; position: relative;
+  }
+  .pip-circle.active   { background: #1e4da1; }
+  .pip-circle.done     { background: #1a5a1a; }
+  .pip-label { font-size: 9px; color: #888; text-align: center; line-height: 1.2; max-width: 70px; }
+  .pip-label.active { color: #1e4da1; font-weight: 600; }
+  .pip-label.done   { color: #1a5a1a; font-weight: 600; }
+  .pip-connector { flex: 1; height: 2px; background: #ccc; margin-top: -18px; transition: background 0.3s; }
+  .pip-connector.done { background: #1a5a1a; }
+
+  /* ── Instruction box ── */
+  .instruction-box {
+    max-width: 860px; margin-bottom: 12px;
+    background: #fff8dc; border: 1px solid #e0c060;
+    border-radius: 4px; padding: 10px 16px;
+    font-size: 12px; color: #5a4000; line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .instruction-box .step-num-badge {
+    background: #1e4da1; color: #fff;
+    font-size: 11px; font-weight: 700;
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .instruction-box .inst-text strong { color: #3a2800; }
+
+  /* ── B4T Form ── */
+  .b4t-card {
+    background: #fff; border: 1px solid #bbb;
+    border-radius: 4px; max-width: 860px; overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .form-topbar {
+    background: #1e4da1; color: #fff;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .form-topbar .timer { font-size: 11px; font-weight: 400; opacity: 0.85; }
+
+  .form-grid {
+    padding: 10px 16px 6px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0 28px; border-bottom: 1px solid #ececec;
+  }
+  .form-col { display: flex; flex-direction: column; }
+  .form-row {
+    display: flex; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid #f4f4f4;
+    min-height: 28px; gap: 8px;
+  }
+  .form-row:last-child { border-bottom: none; }
+  .form-label { font-size: 11px; color: #666; width: 120px; flex-shrink: 0; text-align: right; padding-right: 8px; }
+  .f-static { font-size: 11px; color: #333; }
+  .f-display { display: inline-block; background: #f5f5f5; border: 1px solid #ccc; border-radius: 2px; padding: 2px 7px; font-size: 11px; color: #333; min-width: 120px; }
+  .f-display.filled { background: #e8f5e8; border-color: #70b870; color: #1a5a1a; font-weight: 500; }
+
+  /* Interactive selects */
+  .f-select {
+    font-size: 11px; padding: 3px 8px;
+    border: 1px solid #ccc; border-radius: 2px;
+    background: #f5f5f5; color: #333;
+    min-width: 160px; cursor: pointer; outline: none;
+  }
+  .f-select:focus { border-color: #1e4da1; }
+  .f-select.correct { border-color: #70b870; background: #e8f5e8; color: #1a5a1a; }
+  .f-select.wrong   { border-color: #e05050; background: #fde8e8; color: #8a2020; }
+  .f-select:disabled { opacity: 0.6; cursor: default; }
+
+  /* Interactive text inputs */
+  .f-input {
+    font-size: 11px; padding: 3px 8px;
+    border: 1px solid #ccc; border-radius: 2px;
+    background: #f5f5f5; color: #333;
+    width: 100px; outline: none;
+  }
+  .f-input:focus { border-color: #1e4da1; }
+  .f-input.correct { border-color: #70b870; background: #e8f5e8; color: #1a5a1a; }
+  .f-input.wrong   { border-color: #e05050; background: #fde8e8; color: #8a2020; }
+  .f-input:disabled { opacity: 0.6; cursor: default; }
+
+  /* Textarea */
+  .desc-section { padding: 10px 16px 8px; border-bottom: 1px solid #ececec; }
+  .desc-label { font-size: 11px; color: #666; margin-bottom: 5px; }
+  .desc-textarea {
+    width: 100%; min-height: 72px;
+    background: #e8edf5; border: 1px solid #b0bcd0;
+    border-radius: 2px; padding: 7px 9px;
+    font-size: 12px; color: #222; line-height: 1.5;
+    resize: vertical; outline: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  }
+  .desc-textarea:focus { border-color: #1e4da1; }
+  .desc-textarea.correct { border-color: #70b870; background: #f0faf0; }
+  .desc-textarea.wrong   { border-color: #e05050; background: #fff5f5; }
+  .desc-textarea:disabled { opacity: 0.6; cursor: default; }
+
+  /* Time section */
+  .form-time { padding: 8px 16px 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+
+  /* Field feedback badge */
+  .field-badge { font-size: 11px; margin-left: 4px; }
+  .badge-ok  { color: #1a5a1a; font-weight: 700; }
+  .badge-err { color: #c03030; font-weight: 700; }
+
+  /* Feedback toast */
+  .feedback-box {
+    display: none; margin: 0 16px 10px;
+    padding: 9px 12px; border-radius: 3px;
+    font-size: 12px; line-height: 1.5;
+  }
+  .feedback-box.correct { background: #e8f5e8; border: 1px solid #80c080; color: #1a4a1a; }
+  .feedback-box.wrong   { background: #fde8e8; border: 1px solid #e08080; color: #6a1a1a; }
+
+  /* Buttons */
+  .form-buttons {
+    background: #f0f0f0; border-top: 1px solid #ddd;
+    padding: 8px 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .btn-row { display: flex; gap: 6px; }
+  .btn { font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 3px; border: 1px solid transparent; cursor: pointer; }
+  .btn-primary { background: #1e4da1; color: #fff; border-color: #1a3d80; }
+  .btn-primary:hover { background: #1a3d80; }
+  .btn-primary:disabled { background: #aaa; border-color: #aaa; cursor: default; }
+  .btn-default { background: #e8e8e8; color: #555; border-color: #bbb; }
+  .btn-grey    { background: #e8e8e8; color: #aaa; border-color: #ccc; cursor: default; }
+  .btn-cancel  { background: #fff; color: #777; border-color: #ccc; cursor: default; }
+  .btn-reset   { background: #e8e8e8; color: #555; border-color: #bbb; cursor: pointer; }
+
+  /* Add Time button */
+  .add-time-wrap {
+    max-width: 860px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .add-time-btn {
+    background: #1e4da1; color: #fff;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 24px; border: none; border-radius: 4px;
+    cursor: pointer; transition: background 0.15s;
+    animation: pulse-btn 1.5s infinite;
+  }
+  .add-time-btn:hover { background: #1a3d80; animation: none; }
+  @keyframes pulse-btn {
+    0%,100% { box-shadow: 0 0 0 3px rgba(30,77,161,0.25); }
+    50%      { box-shadow: 0 0 0 7px rgba(30,77,161,0.08); }
+  }
+  .add-time-hint { font-size: 11px; color: #888; font-style: italic; }
+
+  /* Complete card */
+  .complete-card {
+    display: none; background: #fff; border: 1px solid #bbb;
+    border-radius: 4px; max-width: 860px; overflow: hidden; margin-top: 4px;
+  }
+  .complete-top { background: #1a5a1a; color: #fff; font-size: 13px; font-weight: 700; padding: 10px 16px; }
+  .complete-body { padding: 16px 20px; }
+  .complete-body p { font-size: 12px; color: #333; line-height: 1.6; margin-bottom: 10px; }
+  .model-entry {
+    background: #f0faf0; border: 1px solid #80c080;
+    border-radius: 3px; padding: 10px 14px;
+    font-size: 11.5px; line-height: 1.8; color: #222;
+  }
+  .model-entry .field { display: flex; gap: 8px; }
+  .model-entry .fl { font-weight: 700; color: #555; width: 120px; flex-shrink: 0; }
+  .complete-footer { background: #f0f0f0; border-top: 1px solid #ddd; padding: 8px 14px; display: flex; justify-content: flex-end; }
+  .btn-retry { font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 3px; border: 1px solid #bbb; background: #e8e8e8; color: #333; cursor: pointer; }
+  .btn-retry:hover { background: #ddd; }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Practice Activity — Logging a Placeholder Entry</h1>
+  <span class="badge">Interactive</span>
+</div>
+<div class="page-sub">
+  Any time you are out of the office for a full day — PTO, sick day, holiday, or appointment — you must still log an entry in Bill4Time to keep your hours aligned with UKG. Follow the prompts below to practice entering a placeholder entry.
+</div>
+
+<!-- Step tracker -->
+<div class="step-tracker" id="stepTracker">
+  <div class="step-pip">
+    <div class="pip-circle active" id="pip1">1</div>
+    <div class="pip-label active" id="lbl1">Add Time</div>
+  </div>
+  <div class="pip-connector" id="con1"></div>
+  <div class="step-pip">
+    <div class="pip-circle" id="pip2">2</div>
+    <div class="pip-label" id="lbl2">Client</div>
+  </div>
+  <div class="pip-connector" id="con2"></div>
+  <div class="step-pip">
+    <div class="pip-circle" id="pip3">3</div>
+    <div class="pip-label" id="lbl3">Matter</div>
+  </div>
+  <div class="pip-connector" id="con3"></div>
+  <div class="step-pip">
+    <div class="pip-circle" id="pip4">4</div>
+    <div class="pip-label" id="lbl4">Activity</div>
+  </div>
+  <div class="pip-connector" id="con4"></div>
+  <div class="step-pip">
+    <div class="pip-circle" id="pip5">5</div>
+    <div class="pip-label" id="lbl5">Description</div>
+  </div>
+  <div class="pip-connector" id="con5"></div>
+  <div class="step-pip">
+    <div class="pip-circle" id="pip6">6</div>
+    <div class="pip-label" id="lbl6">Times</div>
+  </div>
+</div>
+
+<!-- Instruction box -->
+<div class="instruction-box" id="instructionBox">
+  <div class="step-num-badge" id="instNum">1</div>
+  <div class="inst-text" id="instText">
+    <strong>Step 1 — Click Add Time</strong> to open a new time entry form. You will use this any time you need to log a placeholder for a day out of the office.
+  </div>
+</div>
+
+<!-- Step 1: Add Time button (shown before form opens) -->
+<div class="add-time-wrap" id="addTimeWrap">
+  <button class="add-time-btn" onclick="openForm()">+ Add Time</button>
+  <span class="add-time-hint">Click to open the New Time Entry form</span>
+</div>
+
+<!-- Bill4Time form (hidden until Add Time clicked) -->
+<div class="b4t-card hidden" id="b4tForm">
+  <div class="form-topbar">
+    New Time Entry
+    <span class="timer">▶ 00:00:00 ↺</span>
+  </div>
+
+  <div class="form-grid">
+    <!-- Left col -->
+    <div class="form-col">
+      <div class="form-row">
+        <div class="form-label">For User:</div>
+        <span class="f-display">Account, Test</span>
+      </div>
+
+      <!-- Step 2: Client -->
+      <div class="form-row">
+        <div class="form-label">Client:</div>
+        <select class="f-select" id="clientField" onchange="checkClient()" disabled>
+          <option value="">Search</option>
+          <option value="sls">SLS Operations</option>
+          <option value="hernandez">Hernandez, Maria</option>
+          <option value="patel">Patel, Rajesh</option>
+          <option value="thompson">Thompson, James</option>
+        </select>
+        <span class="field-badge" id="clientBadge"></span>
+      </div>
+
+      <!-- Step 3: Matter -->
+      <div class="form-row">
+        <div class="form-label">Matter:</div>
+        <select class="f-select" id="matterField" onchange="checkMatter()" disabled>
+          <option value="">Search</option>
+          <option value="pto">_PTO_Sick_OOO-SLS Operations</option>
+          <option value="sls441">SLS-2026-0441 – Electrostim MDI</option>
+          <option value="sls389">SLS-2026-0389 – Electrostim MDI</option>
+        </select>
+        <span class="field-badge" id="matterBadge"></span>
+      </div>
+
+      <!-- Step 4: Activity -->
+      <div class="form-row">
+        <div class="form-label">Activity:</div>
+        <select class="f-select" id="activityField" onchange="checkActivity()" disabled>
+          <option value="">Select Activity</option>
+          <option value="other">Other</option>
+          <option value="medrev">SLS_Paralegal_007_Medical Record Review</option>
+          <option value="cq">SLS_Paralegal_004_CQ Retrieval</option>
+          <option value="admin">SLS_Paralegal_028_Admin Organizing/Prioritizing Tasks</option>
+        </select>
+        <span class="field-badge" id="activityBadge"></span>
+      </div>
+    </div>
+
+    <!-- Right col -->
+    <div class="form-col">
+      <div class="form-row">
+        <div class="form-label">Entry Type:</div>
+        <span class="f-static">Hourly Work</span>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Overtime:</div>
+        <input type="checkbox" disabled>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Billable:</div>
+        <input type="checkbox" checked disabled>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Exclude From Invoice:</div>
+        <input type="checkbox" disabled>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Date Created:</div>
+        <span class="f-static" style="font-weight:600;">09/23/2026</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5: Description -->
+  <div class="desc-section">
+    <div class="desc-label">Private Description: <span id="descRequired" style="color:#c03030;display:none;">*</span></div>
+    <textarea class="desc-textarea" id="descField" placeholder="Enter your description here…" oninput="checkDesc()" disabled></textarea>
+    <div style="display:flex;justify-content:space-between;margin-top:3px;">
+      <span id="descHint" style="font-size:10px;color:#888;"></span>
+      <span id="charCount" style="font-size:10px;color:#aaa;">Character Count: 0</span>
+    </div>
+    <div style="margin-top:6px;">
+      <label style="font-size:11px;color:#555;display:flex;align-items:center;gap:5px;">
+        <input type="checkbox" checked disabled style="accent-color:#1e4da1;"> Show private description on the invoice?
+      </label>
+    </div>
+  </div>
+
+  <!-- Step 6: Time fields -->
+  <div class="form-time">
+    <div class="form-col">
+      <div class="form-row">
+        <div class="form-label">Date of Work:</div>
+        <span class="f-display">09/23/2026</span>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Start Time:</div>
+        <input class="f-input" id="startField" type="text" placeholder="e.g. 8:00am" oninput="checkTimes()" disabled>
+        <span class="field-badge" id="startBadge"></span>
+      </div>
+      <div class="form-row">
+        <div class="form-label">End Time:</div>
+        <input class="f-input" id="endField" type="text" placeholder="e.g. 4:00pm" oninput="checkTimes()" disabled>
+        &nbsp;<span style="font-size:10px;color:#1e4da1;">Get Time</span>
+        <span class="field-badge" id="endBadge"></span>
+      </div>
+    </div>
+    <div class="form-col">
+      <div class="form-row">
+        <div class="form-label">Labor Time (hrs):</div>
+        <span class="f-display" id="laborField">—</span>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Rate $:</div>
+        <span class="f-display">$0.00</span>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Travel Time (hrs):</div>
+        <span class="f-display">—</span>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Billable (hrs):</div>
+        <span class="f-display" id="billableField">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback -->
+  <div class="feedback-box" id="feedbackBox"></div>
+
+  <!-- Buttons -->
+  <div class="form-buttons">
+    <button class="btn btn-reset" onclick="resetAll()">Start Over</button>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="submitBtn" onclick="checkAll()" disabled>Save &amp; Close</button>
+      <button class="btn btn-grey" disabled>Save &amp; New</button>
+      <button class="btn btn-grey" disabled>Save &amp; Duplicate</button>
+      <button class="btn btn-cancel" disabled>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Complete card -->
+<div class="complete-card" id="completeCard">
+  <div class="complete-top">✓ Placeholder entry complete — great work!</div>
+  <div class="complete-body">
+    <p>You correctly logged a full-day out-of-office placeholder. Here is what the completed entry should look like:</p>
+    <div class="model-entry">
+      <div class="field"><span class="fl">Client:</span> SLS Operations</div>
+      <div class="field"><span class="fl">Matter:</span> _PTO_Sick_OOO-SLS Operations</div>
+      <div class="field"><span class="fl">Activity:</span> Other</div>
+      <div class="field"><span class="fl">Description:</span> Out of Office – PTO <em>(or Sick / Holiday / Appointment)</em></div>
+      <div class="field"><span class="fl">Start Time:</span> 8:00am</div>
+      <div class="field"><span class="fl">End Time:</span> 4:00pm</div>
+      <div class="field"><span class="fl">Labor Time:</span> 8 hours (auto-calculated)</div>
+    </div>
+    <p style="margin-top:12px;">Remember — even when you are not working, this entry ensures your Bill4Time hours stay aligned with your UKG timecard for the day.</p>
+  </div>
+  <div class="complete-footer">
+    <button class="btn-retry" onclick="resetAll()">Try Again</button>
+  </div>
+</div>
+
+<script>
+  let currentStep = 1;
+
+  const steps = {
+    1: { num:'1', text: '<strong>Step 1 — Click Add Time</strong> to open a new time entry form. You will use this any time you need to log a placeholder for a day out of the office.' },
+    2: { num:'2', text: '<strong>Step 2 — Select the Client.</strong> In the Client field, choose <strong>SLS Operations</strong> — this is always the client used for placeholder entries.' },
+    3: { num:'3', text: '<strong>Step 3 — Select the Matter.</strong> Choose the first option: <strong>_PTO_Sick_OOO-SLS Operations</strong>. This matter covers all out-of-office scenarios including PTO, sick days, holidays, and appointments.' },
+    4: { num:'4', text: '<strong>Step 4 — Select the Activity.</strong> Choose <strong>Other</strong> from the Activity dropdown.' },
+    5: { num:'5', text: '<strong>Step 5 — Write the Description.</strong> In the Private Description field, enter the reason for your absence. Use one of the following: <em>Out of Office – PTO</em>, <em>Out of Office – Sick</em>, <em>Out of Office – Holiday</em>, or <em>Out of Office – Appointment</em>.' },
+    6: { num:'6', text: '<strong>Step 6 — Set the Times.</strong> Manually enter <strong>8:00am</strong> as the Start Time and <strong>4:00pm</strong> as the End Time. Bill4Time will automatically calculate 8 hours.' },
+  };
+
+  function setStep(n) {
+    currentStep = n;
+    document.getElementById('instNum').textContent = n;
+    document.getElementById('instText').innerHTML = steps[n].text;
+
+    // Update pips
+    for (let i = 1; i <= 6; i++) {
+      const pip = document.getElementById('pip'+i);
+      const lbl = document.getElementById('lbl'+i);
+      if (i < n)      { pip.className = 'pip-circle done'; lbl.className = 'pip-label done'; }
+      else if (i === n) { pip.className = 'pip-circle active'; lbl.className = 'pip-label active'; }
+      else            { pip.className = 'pip-circle'; lbl.className = 'pip-label'; }
+      if (i < 6) {
+        document.getElementById('con'+i).className = 'pip-connector' + (i < n ? ' done' : '');
+      }
+    }
+  }
+
+  function openForm() {
+    document.getElementById('addTimeWrap').style.display = 'none';
+    document.getElementById('b4tForm').classList.remove('hidden');
+    document.getElementById('clientField').disabled = false;
+    setStep(2);
+  }
+
+  function checkClient() {
+    const val = document.getElementById('clientField').value;
+    const badge = document.getElementById('clientBadge');
+    if (val === 'sls') {
+      document.getElementById('clientField').className = 'f-select correct';
+      badge.innerHTML = '<span class="badge-ok">✓</span>';
+      document.getElementById('matterField').disabled = false;
+      setStep(3);
+    } else if (val) {
+      document.getElementById('clientField').className = 'f-select wrong';
+      badge.innerHTML = '<span class="badge-err">✕</span>';
+      showFeedback('wrong', 'That is not the correct client for a placeholder entry. Select <strong>SLS Operations</strong>.');
+    }
+    updateSubmit();
+  }
+
+  function checkMatter() {
+    const val = document.getElementById('matterField').value;
+    const badge = document.getElementById('matterBadge');
+    if (val === 'pto') {
+      document.getElementById('matterField').className = 'f-select correct';
+      badge.innerHTML = '<span class="badge-ok">✓</span>';
+      document.getElementById('activityField').disabled = false;
+      hideFeedback();
+      setStep(4);
+    } else if (val) {
+      document.getElementById('matterField').className = 'f-select wrong';
+      badge.innerHTML = '<span class="badge-err">✕</span>';
+      showFeedback('wrong', 'That is a client matter, not a placeholder. Select <strong>_PTO_Sick_OOO-SLS Operations</strong>.');
+    }
+    updateSubmit();
+  }
+
+  function checkActivity() {
+    const val = document.getElementById('activityField').value;
+    const badge = document.getElementById('activityBadge');
+    if (val === 'other') {
+      document.getElementById('activityField').className = 'f-select correct';
+      badge.innerHTML = '<span class="badge-ok">✓</span>';
+      document.getElementById('descField').disabled = false;
+      document.getElementById('descRequired').style.display = 'inline';
+      hideFeedback();
+      setStep(5);
+    } else if (val) {
+      document.getElementById('activityField').className = 'f-select wrong';
+      badge.innerHTML = '<span class="badge-err">✕</span>';
+      showFeedback('wrong', 'For placeholder entries, always select <strong>Other</strong> as the Activity.');
+    }
+    updateSubmit();
+  }
+
+  function checkDesc() {
+    const val = document.getElementById('descField').value;
+    document.getElementById('charCount').textContent = 'Character Count: ' + val.length;
+    const n = val.toLowerCase().trim();
+    const valid = (n.includes('out of office') || n.includes('pto') || n.includes('sick') || n.includes('holiday') || n.includes('appointment')) && val.length > 3;
+
+    if (valid) {
+      document.getElementById('descField').className = 'desc-textarea correct';
+      document.getElementById('descHint').textContent = '✓ Looks good';
+      document.getElementById('descHint').style.color = '#1a5a1a';
+      document.getElementById('startField').disabled = false;
+      document.getElementById('endField').disabled = false;
+      hideFeedback();
+      setStep(6);
+    } else if (val.length > 0) {
+      document.getElementById('descField').className = 'desc-textarea';
+      document.getElementById('descHint').textContent = 'Include the reason — e.g. Out of Office – PTO';
+      document.getElementById('descHint').style.color = '#b06000';
+    }
+    updateSubmit();
+  }
+
+  function checkTimes() {
+    const start = document.getElementById('startField').value.trim().toLowerCase().replace(/\s/g,'');
+    const end   = document.getElementById('endField').value.trim().toLowerCase().replace(/\s/g,'');
+
+    const validStart = ['8:00am','8:00a','800am','8am'].includes(start);
+    const validEnd   = ['4:00pm','4:00p','400pm','4pm'].includes(end);
+
+    const sb = document.getElementById('startBadge');
+    const eb = document.getElementById('endBadge');
+
+    if (validStart) {
+      document.getElementById('startField').className = 'f-input correct';
+      sb.innerHTML = '<span class="badge-ok">✓</span>';
+    } else if (start) {
+      document.getElementById('startField').className = 'f-input wrong';
+      sb.innerHTML = '<span class="badge-err">✕</span>';
+    }
+
+    if (validEnd) {
+      document.getElementById('endField').className = 'f-input correct';
+      eb.innerHTML = '<span class="badge-ok">✓</span>';
+    } else if (end) {
+      document.getElementById('endField').className = 'f-input wrong';
+      eb.innerHTML = '<span class="badge-err">✕</span>';
+    }
+
+    if (validStart && validEnd) {
+      document.getElementById('laborField').textContent = '8';
+      document.getElementById('billableField').textContent = '8.00';
+      document.getElementById('laborField').className = 'f-display filled';
+      document.getElementById('billableField').className = 'f-display filled';
+      hideFeedback();
+    } else {
+      document.getElementById('laborField').textContent = '—';
+      document.getElementById('laborField').className = 'f-display';
+      document.getElementById('billableField').textContent = '—';
+      document.getElementById('billableField').className = 'f-display';
+    }
+    updateSubmit();
+  }
+
+  function allCorrect() {
+    const client   = document.getElementById('clientField').value === 'sls';
+    const matter   = document.getElementById('matterField').value === 'pto';
+    const activity = document.getElementById('activityField').value === 'other';
+    const desc     = document.getElementById('descField').value;
+    const n = desc.toLowerCase();
+    const descOk   = (n.includes('out of office') || n.includes('pto') || n.includes('sick') || n.includes('holiday') || n.includes('appointment')) && desc.length > 3;
+    const start    = document.getElementById('startField').value.trim().toLowerCase().replace(/\s/g,'');
+    const end      = document.getElementById('endField').value.trim().toLowerCase().replace(/\s/g,'');
+    const timesOk  = ['8:00am','8:00a','800am','8am'].includes(start) && ['4:00pm','4:00p','400pm','4pm'].includes(end);
+    return client && matter && activity && descOk && timesOk;
+  }
+
+  function updateSubmit() {
+    document.getElementById('submitBtn').disabled = !allCorrect();
+  }
+
+  function checkAll() {
+    if (allCorrect()) {
+      hideFeedback();
+      document.getElementById('completeCard').style.display = 'block';
+      document.getElementById('completeCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function showFeedback(type, msg) {
+    const fb = document.getElementById('feedbackBox');
+    fb.style.display = 'block';
+    fb.className = 'feedback-box ' + type;
+    fb.innerHTML = msg;
+  }
+
+  function hideFeedback() {
+    document.getElementById('feedbackBox').style.display = 'none';
+  }
+
+  function resetAll() {
+    currentStep = 1;
+    document.getElementById('addTimeWrap').style.display = 'flex';
+    document.getElementById('b4tForm').classList.add('hidden');
+    document.getElementById('completeCard').style.display = 'none';
+
+    // Reset all fields
+    ['clientField','matterField','activityField'].forEach(id => {
+      document.getElementById(id).value = '';
+      document.getElementById(id).className = 'f-select';
+      document.getElementById(id).disabled = true;
+    });
+    ['clientBadge','matterBadge','activityBadge','startBadge','endBadge'].forEach(id => {
+      document.getElementById(id).innerHTML = '';
+    });
+    document.getElementById('descField').value = '';
+    document.getElementById('descField').className = 'desc-textarea';
+    document.getElementById('descField').disabled = true;
+    document.getElementById('descRequired').style.display = 'none';
+    document.getElementById('descHint').textContent = '';
+    document.getElementById('charCount').textContent = 'Character Count: 0';
+    document.getElementById('startField').value = '';
+    document.getElementById('startField').className = 'f-input';
+    document.getElementById('startField').disabled = true;
+    document.getElementById('endField').value = '';
+    document.getElementById('endField').className = 'f-input';
+    document.getElementById('endField').disabled = true;
+    document.getElementById('laborField').textContent = '—';
+    document.getElementById('laborField').className = 'f-display';
+    document.getElementById('billableField').textContent = '—';
+    document.getElementById('billableField').className = 'f-display';
+    document.getElementById('submitBtn').disabled = true;
+    hideFeedback();
+    setStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
